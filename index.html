@@ -99,6 +99,7 @@
         </div>
         <p class="verdict" id="verdict"></p>
         <p class="stats" id="stats"></p>
+        <button id="btn-sticker" class="btn btn-sticker" type="button" disabled>✨ Make sticker</button>
         <div class="save-row">
           <button id="btn-dl-drawing" class="btn btn-small" type="button" disabled>⬇ Drawing</button>
           <button id="btn-dl-card" class="btn btn-small" type="button" disabled>⬇ Result card</button>
@@ -108,6 +109,25 @@
       </div>
     </aside>
   </main>
+
+  <dialog id="sticker-dialog" class="sheet" aria-labelledby="sticker-title">
+    <form method="dialog" class="sheet-close-form">
+      <button class="sheet-close" aria-label="Close">✕</button>
+    </form>
+    <h2 id="sticker-title" class="sheet-title">Your sticker</h2>
+    <div class="sticker-stage" id="sticker-stage" data-bg="checker">
+      <img id="sticker-img" alt="Your drawing as a sticker" width="512" height="512">
+    </div>
+    <div class="bg-switch" role="radiogroup" aria-label="Preview background">
+      <button type="button" role="radio" data-bg="checker" aria-checked="true">Clear</button>
+      <button type="button" role="radio" data-bg="dark" aria-checked="false">Dark chat</button>
+      <button type="button" role="radio" data-bg="light" aria-checked="false">Light chat</button>
+    </div>
+    <div class="sheet-actions">
+      <button id="btn-dl-sticker" class="btn btn-primary" type="button">⬇ Download sticker</button>
+    </div>
+    <p class="sheet-note">512×512 PNG with a transparent background.</p>
+  </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>

@@ -329,6 +329,13 @@ body:not([data-phase="drawing"]) .timer-pill { display: none; }
   color: var(--ink);
   box-shadow: 3px 3px 0 var(--frame);
 }
+.btn-sticker {
+  width: 100%;
+  font-size: 1.05rem;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #ffe08a, #ffb3c1);
+  color: var(--ink);
+}
 .save-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 
 /* ---------- phone: small reference on top, canvas, then tools + buttons ---------- */
@@ -373,3 +380,61 @@ body:not([data-phase="drawing"]) .timer-pill { display: none; }
   .card .btn { width: 100%; }
   .btn-primary { font-size: 1.35rem; padding: 14px 22px; }
 }
+
+/* ---------- sticker dialog ---------- */
+.sheet {
+  width: min(92vw, 420px);
+  max-height: 92dvh;
+  padding: 20px 18px 18px;
+  border: 3px solid var(--frame);
+  border-radius: 24px;
+  box-shadow: 6px 6px 0 var(--frame);
+  background: var(--paper);
+  color: var(--ink);
+  text-align: center;
+  overflow: auto;
+}
+.sheet::backdrop { background: rgba(43, 33, 24, 0.45); }
+.sheet[open] { animation: sheet-in 0.25s cubic-bezier(.2, 1.3, .4, 1); }
+@keyframes sheet-in { from { transform: translateY(30px) scale(0.96); opacity: 0; } }
+.sheet-close-form { position: absolute; top: 10px; right: 10px; margin: 0; }
+.sheet-close {
+  width: 36px; height: 36px;
+  border: 2px solid var(--frame);
+  border-radius: 50%;
+  background: var(--paper);
+  font: inherit; font-weight: 900;
+  cursor: pointer;
+}
+.sheet-title { margin: 0 0 12px; font-size: 1.4rem; font-weight: 900; }
+.sheet-note { margin: 10px 0 0; color: var(--muted); font-size: 0.85rem; }
+
+.sticker-stage {
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  transition: background 0.2s;
+}
+.sticker-stage[data-bg="checker"] {
+  background: repeating-conic-gradient(#e8e2d4 0 25%, #fff 0 50%) 50% / 24px 24px;
+}
+.sticker-stage[data-bg="dark"] { background: #101014; }
+.sticker-stage[data-bg="light"] { background: #eef0f3; }
+.sticker-stage img { width: 86%; height: auto; animation: sticker-slap 0.5s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes sticker-slap { from { transform: scale(1.4) rotate(-12deg); opacity: 0; } }
+
+.bg-switch { display: flex; justify-content: center; gap: 6px; margin: 10px 0 14px; }
+.bg-switch button {
+  font: inherit; font-size: 0.85rem; font-weight: 700;
+  padding: 5px 12px;
+  border: 2px solid var(--frame);
+  border-radius: 999px;
+  background: var(--paper);
+  cursor: pointer;
+}
+.bg-switch button[aria-checked="true"] { background: var(--ink); color: #fff; }
+.sheet-actions { display: flex; flex-direction: column; gap: 10px; }
+.sheet-actions .btn { width: 100%; }

@@ -1,5 +1,5 @@
-// Turns canvases into PNG blobs: the plain drawing and the shareable result card.
-// (The sticker export is added in step 7.) Knows nothing about scoring: callers pass numbers/text in.
+// Turns canvases into PNG blobs: the plain drawing, the shareable result card and the sticker.
+// Knows nothing about scoring: callers pass numbers/text in.
 window.DG = window.DG || {};
 
 DG.Export = (function () {
@@ -159,5 +159,84 @@ DG.Export = (function () {
     return toBlob(c);
   }
 
-  return { drawingPng, resultCard, toBlob };
+  // ---------- sticker ----------
+  DG.STICKER = {
+    SIZE: 512,          // output is SIZE x SIZE, transparent (a common sticker size)
+    OUTLINE: 14,        // white border thickness in output px
+    SHADOW_BLUR: 10,
+    SHADOW_Y: 4,
+    SHADOW_COLOR: 'rgba(0, 0, 0, 0.28)',
+    MARGIN: 10,         // extra room around outline + shadow
+  };
+
+  function alphaBounds(canvas) {
+    const { width: w, height: h } = canvas;
+    const d = canvas.getContext('2d').getImageData(0, 0, w, h).data;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (d[(y * w + x) * 4 + 3] > 8) {
+          if (x < x0) x0 = x; if (x > x1) x1 = x;
+          if (y < y0) y0 = y; if (y > y1) y1 = y;
+        }
+      }
+    }
+    return x1 < 0 ? null : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+  }
+
+  // Die-cut sticker: crop to the drawing, thick white outline, soft shadow, transparent square.
+  // Returns { canvas, blob: Promise<Blob> } or null for an empty drawing.
+  function sticker(drawCanvas) {
+    const S = DG.STICKER;
+    const box = alphaBounds(drawCanvas);
+    if (!box) return null;
+    const N = S.SIZE;
+
+    // 1) the drawing, cropped and scaled to fit inside the margins (outline + shadow room)
+    const room = S.OUTLINE + S.SHADOW_BLUR + S.SHADOW_Y + S.MARGIN;
+    const scale = (N - 2 * room) / Math.max(box.w, box.h);
+    const dw = box.w * scale, dh = box.h * scale;
+    const dx = (N - dw) / 2, dy = (N - dh) / 2 - S.SHADOW_Y / 2;
+    const art = makeCanvas(N, N);
+    const ax = art.getContext('2d');
+    ax.imageSmoothingQuality = 'high';
+    ax.drawImage(drawCanvas, box.x, box.y, box.w, box.h, dx, dy, dw, dh);
+
+    // 2) white silhouette of the drawing
+    const sil = makeCanvas(N, N);
+    const sx = sil.getContext('2d');
+    sx.drawImage(art, 0, 0);
+    sx.globalCompositeOperation = 'source-in';
+    sx.fillStyle = '#fff';
+    sx.fillRect(0, 0, N, N);
+
+    // 3) thick outline = the silhouette stamped in rings around itself (a cheap dilation that
+    //    works in every browser, unlike ctx.filter which Safari has only recently supported)
+    const outline = makeCanvas(N, N);
+    const ox = outline.getContext('2d');
+    const R = S.OUTLINE;
+    for (const r of [R, R * 0.7, R * 0.4]) {
+      const steps = Math.max(12, Math.ceil(r * 2.4));
+      for (let i = 0; i < steps; i++) {
+        const a = (i / steps) * Math.PI * 2;
+        ox.drawImage(sil, Math.cos(a) * r, Math.sin(a) * r);
+      }
+    }
+    ox.drawImage(sil, 0, 0);
+
+    // 4) compose: shadowed outline, then the drawing on top
+    const out = makeCanvas(N, N);
+    const x = out.getContext('2d');
+    x.save();
+    x.shadowColor = S.SHADOW_COLOR;
+    x.shadowBlur = S.SHADOW_BLUR;
+    x.shadowOffsetY = S.SHADOW_Y;
+    x.drawImage(outline, 0, 0);
+    x.restore();
+    x.drawImage(art, 0, 0);
+
+    return { canvas: out, blob: toBlob(out) };
+  }
+
+  return { drawingPng, resultCard, sticker, toBlob };
 })();

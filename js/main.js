@@ -394,9 +394,13 @@ window.DG = window.DG || {};
         }),
       },
     };
-    const buttons = { drawing: $('btn-dl-drawing'), card: $('btn-dl-card') };
+    const st = DG.Export.sticker($('draw-canvas'));
+    if (st) state.exports.sticker = { name: `copy-that-${slug}-sticker.png`, blob: st.blob };
+
+    const buttons = { drawing: $('btn-dl-drawing'), card: $('btn-dl-card'), sticker: $('btn-sticker') };
     for (const [key, btn] of Object.entries(buttons)) {
       btn.disabled = true;
+      if (!state.exports[key]) continue;
       state.exports[key].blob.then(() => { btn.disabled = false; }, (err) => {
         console.error('Export failed:', err);
         btn.title = 'Could not create this image';
@@ -415,6 +419,35 @@ window.DG = window.DG || {};
     }
   }
 
+  // ---------- sticker dialog ----------
+  let stickerUrl = null;
+  async function openSticker() {
+    const e = state.exports.sticker;
+    if (!e) return;
+    const blob = await e.blob;
+    if (stickerUrl) URL.revokeObjectURL(stickerUrl);
+    stickerUrl = URL.createObjectURL(blob);
+    const img = $('sticker-img');
+    img.src = stickerUrl;
+    img.style.animation = 'none';
+    void img.offsetWidth; // restart the "slap" animation
+    img.style.animation = '';
+    $('sticker-dialog').showModal();
+  }
+
+  document.querySelectorAll('.bg-switch button').forEach((b) => b.addEventListener('click', () => {
+    document.querySelectorAll('.bg-switch button').forEach((x) => x.setAttribute('aria-checked', String(x === b)));
+    $('sticker-stage').dataset.bg = b.dataset.bg;
+  }));
+  // click on the backdrop closes the dialog
+  $('sticker-dialog').addEventListener('click', (e) => {
+    const d = e.currentTarget, r = d.getBoundingClientRect();
+    const outside = e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+    if (e.target === d && outside) d.close();
+  });
+
+  $('btn-sticker').addEventListener('click', openSticker);
+  $('btn-dl-sticker').addEventListener('click', () => downloadExport('sticker'));
   $('btn-dl-drawing').addEventListener('click', () => downloadExport('drawing'));
   $('btn-dl-card').addEventListener('click', () => downloadExport('card'));
 

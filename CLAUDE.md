@@ -85,6 +85,8 @@ Image refs with a white background get it knocked out to transparent on load (`k
 ## Export & sharing
 - Sticker: crop to alpha bbox + padding → white silhouette (`source-in`) → dilate by stamping it around a
   circle → soft drop shadow → original on top → fit into 512×512 transparent PNG. Don't use `ctx.filter` (Safari).
+  Outline thickness, shadow and size are in `DG.STICKER` (js/export.js). Separate drawn pieces get
+  separate outlines (no merging into one die-cut shape).
 - Share sheet (`navigator.share({files})`, gated by `navigator.canShare`) and Copy image (`ClipboardItem`
   with a Promise blob for Safari) need **HTTPS or localhost** and must be called directly in a click handler.
 - Desktop Firefox can't share files, and clipboard support varies, so Download is always shown. Hide
