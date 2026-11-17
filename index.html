@@ -12,6 +12,8 @@
   <script src="js/draw.js" defer></script>
   <script src="js/scoring.js" defer></script>
   <script src="js/verdicts.js" defer></script>
+  <script src="js/export.js" defer></script>
+  <script src="js/share.js" defer></script>
   <script src="js/main.js" defer></script>
 </head>
 <body data-phase="drawing">
@@ -97,6 +99,10 @@
         </div>
         <p class="verdict" id="verdict"></p>
         <p class="stats" id="stats"></p>
+        <div class="save-row">
+          <button id="btn-dl-drawing" class="btn btn-small" type="button" disabled>⬇ Drawing</button>
+          <button id="btn-dl-card" class="btn btn-small" type="button" disabled>⬇ Result card</button>
+        </div>
         <button id="btn-again" class="btn btn-primary" type="button">Play again</button>
         <div id="debug" class="debug" hidden></div>
       </div>

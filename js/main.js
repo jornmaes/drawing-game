@@ -16,6 +16,7 @@ window.DG = window.DG || {};
     replay: null, // controller for the running replay
     drawTimeMs: 0,
     result: null, // { score, raw, shape, color, empty, verdict: {badge, line}, ... }
+    exports: {},  // PNG blob promises, made as soon as the result is known
   };
   const DEBUG = params.has('debug');
   DG.state = state; // handy for poking around in the console
@@ -269,6 +270,7 @@ window.DG = window.DG || {};
     stopTimer();
     if (state.replay) { state.replay.cancel(); state.replay = null; }
     state.ref = ref || nextRef();
+    state.exports = {};
     state.strokes = [];
     state.redo = [];
     DG.Draw.reset();
@@ -364,6 +366,7 @@ window.DG = window.DG || {};
       card.classList.add('revealed');
     });
     if (DEBUG) renderDebug(r);
+    prepareExports();
 
     const drawn = state.strokes.filter((s) => s.tool === 'brush' || s.tool === 'fill').length;
     $('stats').textContent = `Drawn in ${formatTime(state.drawTimeMs)} with ${drawn} stroke${drawn === 1 ? '' : 's'}.`;
@@ -371,6 +374,49 @@ window.DG = window.DG || {};
     // On phones the result card sits under the canvas: bring it into view.
     document.querySelector('.phase-result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
+
+  // ---------- saving ----------
+  // Blobs are made up front so the buttons (and later the share sheet) respond instantly.
+  function prepareExports() {
+    const r = state.result;
+    const slug = state.ref.id;
+    state.exports = {
+      drawing: { name: `copy-that-${slug}.png`, blob: DG.Export.drawingPng($('draw-canvas')) },
+      card: {
+        name: `copy-that-${slug}-${r.score == null ? 'card' : r.score + 'pct'}.png`,
+        blob: DG.Export.resultCard({
+          refCanvas: $('ref-canvas'),
+          drawCanvas: $('draw-canvas'),
+          refName: state.ref.name,
+          score: r.score,
+          badge: r.verdict.badge,
+          verdict: r.verdict.line,
+        }),
+      },
+    };
+    const buttons = { drawing: $('btn-dl-drawing'), card: $('btn-dl-card') };
+    for (const [key, btn] of Object.entries(buttons)) {
+      btn.disabled = true;
+      state.exports[key].blob.then(() => { btn.disabled = false; }, (err) => {
+        console.error('Export failed:', err);
+        btn.title = 'Could not create this image';
+      });
+    }
+  }
+
+  async function downloadExport(key) {
+    const e = state.exports[key];
+    if (!e) return;
+    try {
+      DG.Share.download(await e.blob, e.name);
+    } catch (err) {
+      console.error(err);
+      toast('Hmm, could not save that image.');
+    }
+  }
+
+  $('btn-dl-drawing').addEventListener('click', () => downloadExport('drawing'));
+  $('btn-dl-card').addEventListener('click', () => downloadExport('card'));
 
   // Animate 0 -> target with an ease-out, then call done().
   function countUp(el, target, done) {

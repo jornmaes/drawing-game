@@ -52,7 +52,8 @@ first-class target, since sharing stickers mostly happens on phones.
   = pop + `renderAll`. Never read pixels back as state.
 - Canvases: 512×512 logical, 1024×1024 backing store, scaled by CSS. Reference and drawing use the same size.
 - **Transparent drawing layer:** the white background is CSS only. The eraser uses `destination-out`.
-  Composite onto white only for scoring and the result card. Stickers and the drawing PNG stay transparent.
+  Exports: the sticker stays transparent; the plain drawing PNG and result card are put on white
+  (transparent PNGs look broken in many phone galleries).
 - Separation: scoring doesn't know about the UI, export doesn't know about scoring (it gets numbers/text
   passed in), and share.js only handles blobs.
 - Input uses Pointer Events with `touch-action: none` on the canvas and `setPointerCapture`. No separate

@@ -322,6 +322,14 @@ body:not([data-phase="drawing"]) .timer-pill { display: none; }
 .btn-primary { background: var(--accent); color: #fff; min-width: 140px; }
 .btn-primary:hover:not(:disabled) { background: var(--accent-dark); }
 .btn-ghost { background: var(--paper); color: var(--ink); }
+.btn-small {
+  font-size: 0.95rem;
+  padding: 8px 14px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 3px 3px 0 var(--frame);
+}
+.save-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 
 /* ---------- phone: small reference on top, canvas, then tools + buttons ---------- */
 .panel-ref { max-width: min(36vw, 170px); }
