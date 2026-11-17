@@ -1,5 +1,5 @@
 // Game flow + UI wiring.
-// Step 3: drawing tools (brush, eraser, fill), undo/clear; Skip picks another reference.
+// Drawing tools, undo/redo/clear, reference deck.
 window.DG = window.DG || {};
 
 (function () {
@@ -11,6 +11,7 @@ window.DG = window.DG || {};
     ref: null,
     deck: [],
     strokes: [],
+    redo: [],     // strokes taken off by Undo, restorable with Redo
   };
   DG.state = state; // handy for poking around in the console
 
@@ -27,11 +28,12 @@ window.DG = window.DG || {};
   DG.Draw.init($('draw-canvas'), drawCtx, {
     onStrokeEnd(stroke) {
       state.strokes.push(stroke);
+      state.redo = []; // a new action invalidates the redo history
       updateEditButtons();
     },
   });
 
-  // ---------- undo / clear ----------
+  // ---------- undo / redo / clear ----------
   // Is anything visible right now? (i.e. at least one drawing stroke after the last clear)
   function hasVisibleStrokes() {
     for (let i = state.strokes.length - 1; i >= 0; i--) {
@@ -43,13 +45,22 @@ window.DG = window.DG || {};
 
   function updateEditButtons() {
     $('btn-undo').disabled = state.strokes.length === 0;
+    $('btn-redo').disabled = state.redo.length === 0;
     $('btn-clear').disabled = !hasVisibleStrokes();
   }
 
   function undo() {
     if (!state.strokes.length) return;
-    state.strokes.pop();
+    state.redo.push(state.strokes.pop());
     DG.Strokes.renderAll(state.strokes, drawCtx);
+    updateEditButtons();
+  }
+
+  function redo() {
+    if (!state.redo.length) return;
+    const stroke = state.redo.pop();
+    state.strokes.push(stroke);
+    DG.Strokes.drawStroke(drawCtx, stroke); // appending, so drawing on top == full re-render
     updateEditButtons();
   }
 
@@ -58,11 +69,13 @@ window.DG = window.DG || {};
     // Recorded as a step (not a wipe of the list) so Clear itself can be undone.
     const stroke = { tool: 'clear', color: null, size: 0, points: [{ x: 0, y: 0, t: DG.Draw.now() }] };
     state.strokes.push(stroke);
+    state.redo = [];
     DG.Strokes.drawStroke(drawCtx, stroke);
     updateEditButtons();
   }
 
   $('btn-undo').addEventListener('click', undo);
+  $('btn-redo').addEventListener('click', redo);
   $('btn-clear').addEventListener('click', clearDrawing);
 
   // ---------- tools ----------
@@ -75,7 +88,9 @@ window.DG = window.DG || {};
 
   document.addEventListener('keydown', (e) => {
     if (state.phase !== 'drawing' || e.target.closest('input, textarea')) return;
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
+    const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+    if (mod && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+    if (mod && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const keyTool = { b: 'brush', e: 'eraser', f: 'fill' }[e.key.toLowerCase()];
     if (keyTool) selectTool(keyTool);
@@ -103,17 +118,44 @@ window.DG = window.DG || {};
     document.querySelectorAll('.size-btn .dot').forEach((d) => d.style.setProperty('--dot', DG.Draw.settings.color));
   }
 
-  buildRadioGroup($('palette'), DG.PALETTE, (c) => {
+  function setColor(value) {
+    DG.Draw.settings.color = value;
+    refreshSizeDots();
+    if (DG.Draw.settings.tool === 'eraser') selectTool('brush'); // picking a colour means "I want to paint"
+  }
+
+  const swatches = buildRadioGroup($('palette'), DG.PALETTE, (c) => {
     const b = document.createElement('button');
     b.className = 'swatch';
     b.style.background = c.value;
     b.setAttribute('aria-checked', String(c.value === DG.Draw.settings.color));
     return b;
   }, (c) => {
-    DG.Draw.settings.color = c.value;
-    refreshSizeDots();
-    if (DG.Draw.settings.tool === 'eraser') selectTool('brush'); // picking a colour means "I want to paint"
+    customSwatch.setAttribute('aria-checked', 'false');
+    setColor(c.value);
   });
+
+  // "Any colour" swatch: a real <input type="color"> stretched invisibly over a rainbow circle,
+  // so tapping it opens the native colour picker on desktop, iOS and Android.
+  const customSwatch = document.createElement('label');
+  customSwatch.className = 'swatch swatch-custom';
+  customSwatch.title = 'Pick any colour';
+  customSwatch.setAttribute('role', 'radio');
+  customSwatch.setAttribute('aria-checked', 'false');
+  const customInput = document.createElement('input');
+  customInput.type = 'color';
+  customInput.value = '#00bfa5';
+  customInput.setAttribute('aria-label', 'Pick any colour');
+  customSwatch.appendChild(customInput);
+  $('palette').appendChild(customSwatch);
+  function useCustomColor() {
+    swatches.forEach((x) => x.setAttribute('aria-checked', 'false'));
+    customSwatch.setAttribute('aria-checked', 'true');
+    customSwatch.style.setProperty('--custom', customInput.value);
+    setColor(customInput.value);
+  }
+  customInput.addEventListener('input', useCustomColor);
+  customInput.addEventListener('change', useCustomColor);
 
   buildRadioGroup($('sizes'), DG.BRUSH_SIZES, (s) => {
     const b = document.createElement('button');
@@ -155,6 +197,7 @@ window.DG = window.DG || {};
   async function startRound(ref) {
     state.ref = ref || nextRef();
     state.strokes = [];
+    state.redo = [];
     DG.Draw.reset();
     DG.Strokes.renderAll(state.strokes, drawCtx);
     updateEditButtons();

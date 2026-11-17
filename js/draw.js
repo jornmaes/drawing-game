@@ -3,18 +3,22 @@
 window.DG = window.DG || {};
 
 DG.PALETTE = [
-  { name: 'Black',  value: '#222222' },
-  { name: 'White',  value: '#ffffff' },
-  { name: 'Red',    value: '#e53935' },
-  { name: 'Orange', value: '#fb8c00' },
-  { name: 'Yellow', value: '#fdd835' },
-  { name: 'Tan',    value: '#f2c48d' },
-  { name: 'Brown',  value: '#8d5524' },
-  { name: 'Green',  value: '#43a047' },
-  { name: 'Blue',   value: '#1e88e5' },
-  { name: 'Purple', value: '#8e24aa' },
-  { name: 'Pink',   value: '#f06292' },
+  { name: 'Black',      value: '#222222' },
+  { name: 'Grey',       value: '#8a8a8a' },
+  { name: 'White',      value: '#ffffff' },
+  { name: 'Red',        value: '#e53935' },
+  { name: 'Orange',     value: '#fb8c00' },
+  { name: 'Yellow',     value: '#fdd835' },
+  { name: 'Tan',        value: '#f2c48d' },
+  { name: 'Brown',      value: '#8d5524' },
+  { name: 'Lime',       value: '#9ccc65' },
+  { name: 'Green',      value: '#2e7d32' },
+  { name: 'Sky blue',   value: '#4fc3f7' },
+  { name: 'Blue',       value: '#1e4fd8' },
+  { name: 'Purple',     value: '#8e24aa' },
+  { name: 'Pink',       value: '#f48fb1' },
 ];
+// The palette also has a "custom" swatch (an <input type="color">) for any other colour.
 
 DG.BRUSH_SIZES = [
   { name: 'Small',  value: 5 },
