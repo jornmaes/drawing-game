@@ -1,34 +1,107 @@
-// Reference images: the list, plus rendering one onto a canvas.
-// To add one, append to DG.REFERENCES (see CLAUDE.md). Image refs need a local server.
+// Reference images: categories, the list, and rendering one onto a canvas.
+// To add one, add an entry to a category below (see CLAUDE.md). Image refs need a local server.
 window.DG = window.DG || {};
 
 DG.SIZE = 512;   // logical canvas size; all drawing/scoring uses these units
 DG.SCALE = 2;    // backing store = SIZE * SCALE (1024) for sharpness
 
+// Players can switch categories on/off. `pictures` holds image files from /images.
+DG.CATEGORIES = [
+  { id: 'food', name: 'Food', icon: '🍔' },
+  { id: 'animals', name: 'Animals', icon: '🐾' },
+  { id: 'nature', name: 'Nature & weather', icon: '🌈' },
+  { id: 'objects', name: 'Things', icon: '🎁' },
+  { id: 'faces', name: 'Faces', icon: '😀' },
+  { id: 'symbols', name: 'Symbols', icon: '❤️' },
+  { id: 'pictures', name: 'Pictures', icon: '🖼️', needsServer: true },
+];
+
+// Compact helpers so the lists stay readable: [id, name, emoji] / [id, name, file in /images].
+DG.emojiRefs = (category, list) =>
+  list.map(([id, name, value]) => ({ id, name, category, type: 'emoji', value }));
+DG.imageRefs = (category, list) =>
+  list.map(([id, name, src]) => ({ id, name, category, type: 'image', src }));
+
 DG.REFERENCES = [
-  { id: 'apple',      name: 'Apple',      type: 'emoji', value: '🍎' },
-  { id: 'banana',     name: 'Banana',     type: 'emoji', value: '🍌' },
-  { id: 'pizza',      name: 'Pizza',      type: 'emoji', value: '🍕' },
-  { id: 'donut',      name: 'Donut',      type: 'emoji', value: '🍩' },
-  { id: 'watermelon', name: 'Watermelon', type: 'emoji', value: '🍉' },
-  { id: 'avocado',    name: 'Avocado',    type: 'emoji', value: '🥑' },
-  { id: 'icecream',   name: 'Ice cream',  type: 'emoji', value: '🍦' },
-  { id: 'mushroom',   name: 'Mushroom',   type: 'emoji', value: '🍄' },
-  { id: 'cactus',     name: 'Cactus',     type: 'emoji', value: '🌵' },
-  { id: 'clover',     name: 'Clover',     type: 'emoji', value: '🍀' },
-  { id: 'star',       name: 'Star',       type: 'emoji', value: '⭐' },
-  { id: 'heart',      name: 'Heart',      type: 'emoji', value: '❤️' },
-  { id: 'moon',       name: 'Moon',       type: 'emoji', value: '🌙' },
-  { id: 'sun',        name: 'Sun',        type: 'emoji', value: '☀️' },
-  { id: 'fire',       name: 'Fire',       type: 'emoji', value: '🔥' },
-  { id: 'balloon',    name: 'Balloon',    type: 'emoji', value: '🎈' },
-  { id: 'fish',       name: 'Fish',       type: 'emoji', value: '🐟' },
-  { id: 'frog',       name: 'Frog',       type: 'emoji', value: '🐸' },
-  { id: 'octopus',    name: 'Octopus',    type: 'emoji', value: '🐙' },
-  { id: 'ghost',      name: 'Ghost',      type: 'emoji', value: '👻' },
-  { id: 'poop',       name: 'Poop',       type: 'emoji', value: '💩' },
-  { id: 'football',   name: 'Ball',       type: 'emoji', value: '⚽' },
-  // { id: 'cat', name: 'Cat', type: 'image', src: 'images/cat.png' },
+  ...DG.emojiRefs('food', [
+    ['apple', 'Apple', '🍎'], ['banana', 'Banana', '🍌'], ['pizza', 'Pizza', '🍕'], ['donut', 'Donut', '🍩'],
+    ['watermelon', 'Watermelon', '🍉'], ['avocado', 'Avocado', '🥑'], ['icecream', 'Ice cream', '🍦'],
+    ['strawberry', 'Strawberry', '🍓'], ['cherries', 'Cherries', '🍒'], ['lemon', 'Lemon', '🍋'],
+    ['orange', 'Orange', '🍊'], ['grapes', 'Grapes', '🍇'], ['pear', 'Pear', '🍐'], ['carrot', 'Carrot', '🥕'],
+    ['corn', 'Corn', '🌽'], ['broccoli', 'Broccoli', '🥦'], ['burger', 'Burger', '🍔'], ['fries', 'Fries', '🍟'],
+    ['hotdog', 'Hot dog', '🌭'], ['cupcake', 'Cupcake', '🧁'], ['cookie', 'Cookie', '🍪'], ['cake', 'Cake', '🍰'],
+    ['egg', 'Fried egg', '🍳'], ['cheese', 'Cheese', '🧀'], ['croissant', 'Croissant', '🥐'],
+    ['lollipop', 'Lollipop', '🍭'], ['candy', 'Candy', '🍬'], ['pretzel', 'Pretzel', '🥨'],
+    ['taco', 'Taco', '🌮'], ['popcorn', 'Popcorn', '🍿'], ['peach', 'Peach', '🍑'],
+    ['pineapple', 'Pineapple', '🍍'], ['coconut', 'Coconut', '🥥'], ['kiwi', 'Kiwi', '🥝'],
+    ['pepper', 'Chili pepper', '🌶️'],
+  ]),
+  ...DG.emojiRefs('animals', [
+    ['fish', 'Fish', '🐟'], ['tropicalfish', 'Tropical fish', '🐠'], ['frog', 'Frog', '🐸'],
+    ['octopus', 'Octopus', '🐙'], ['turtle', 'Turtle', '🐢'], ['cat', 'Cat', '🐱'], ['dog', 'Dog', '🐶'],
+    ['pig', 'Pig', '🐷'], ['cow', 'Cow', '🐮'], ['mouse', 'Mouse', '🐭'], ['rabbit', 'Bunny', '🐰'],
+    ['fox', 'Fox', '🦊'], ['bear', 'Bear', '🐻'], ['panda', 'Panda', '🐼'], ['koala', 'Koala', '🐨'],
+    ['tiger', 'Tiger', '🐯'], ['lion', 'Lion', '🦁'], ['monkey', 'Monkey', '🐵'], ['penguin', 'Penguin', '🐧'],
+    ['chick', 'Chick', '🐤'], ['duck', 'Duck', '🦆'], ['owl', 'Owl', '🦉'], ['whale', 'Whale', '🐳'],
+    ['dolphin', 'Dolphin', '🐬'], ['shark', 'Shark', '🦈'], ['crab', 'Crab', '🦀'], ['snail', 'Snail', '🐌'],
+    ['bee', 'Bee', '🐝'], ['ladybug', 'Ladybug', '🐞'], ['butterfly', 'Butterfly', '🦋'],
+    ['snake', 'Snake', '🐍'], ['unicorn', 'Unicorn', '🦄'], ['dino', 'Dinosaur', '🦖'],
+    ['elephant', 'Elephant', '🐘'],
+  ]),
+  ...DG.emojiRefs('nature', [
+    ['cactus', 'Cactus', '🌵'], ['clover', 'Clover', '🍀'], ['moon', 'Moon', '🌙'], ['sun', 'Sun', '☀️'],
+    ['star', 'Star', '⭐'], ['fire', 'Fire', '🔥'], ['rainbow', 'Rainbow', '🌈'], ['cloud', 'Cloud', '☁️'],
+    ['snowman', 'Snowman', '⛄'], ['snowflake', 'Snowflake', '❄️'], ['lightning', 'Lightning', '⚡'],
+    ['droplet', 'Droplet', '💧'], ['sunflower', 'Sunflower', '🌻'], ['tulip', 'Tulip', '🌷'],
+    ['rose', 'Rose', '🌹'], ['blossom', 'Blossom', '🌸'], ['pine', 'Pine tree', '🌲'],
+    ['palm', 'Palm tree', '🌴'], ['leaf', 'Maple leaf', '🍁'], ['wave', 'Wave', '🌊'],
+    ['mushroom', 'Mushroom', '🍄'], ['volcano', 'Volcano', '🌋'], ['earth', 'Earth', '🌍'],
+    ['comet', 'Shooting star', '🌠'],
+  ]),
+  ...DG.emojiRefs('objects', [
+    ['balloon', 'Balloon', '🎈'], ['football', 'Football', '⚽'], ['basketball', 'Basketball', '🏀'],
+    ['gift', 'Present', '🎁'], ['key', 'Key', '🔑'], ['pencil', 'Pencil', '✏️'], ['pin', 'Pushpin', '📌'],
+    ['tophat', 'Top hat', '🎩'], ['crown', 'Crown', '👑'], ['gem', 'Gem', '💎'], ['bell', 'Bell', '🔔'],
+    ['bulb', 'Light bulb', '💡'], ['umbrella', 'Umbrella', '☂️'], ['rocket', 'Rocket', '🚀'],
+    ['car', 'Car', '🚗'], ['bus', 'Bus', '🚌'], ['sailboat', 'Sailboat', '⛵'], ['house', 'House', '🏠'],
+    ['guitar', 'Guitar', '🎸'], ['socks', 'Socks', '🧦'], ['sneaker', 'Sneaker', '👟'],
+    ['sunglasses', 'Sunglasses', '🕶️'], ['clock', 'Alarm clock', '⏰'], ['magnet', 'Magnet', '🧲'],
+    ['target', 'Target', '🎯'], ['teddy', 'Teddy bear', '🧸'], ['pumpkin', 'Jack-o\'-lantern', '🎃'],
+    ['xmastree', 'Christmas tree', '🎄'], ['trophy', 'Trophy', '🏆'], ['anchor', 'Anchor', '⚓'],
+    ['dice', 'Die', '🎲'], ['paperclip', 'Paperclip', '📎'], ['lock', 'Padlock', '🔒'],
+    ['scissors', 'Scissors', '✂️'],
+  ]),
+  ...DG.emojiRefs('faces', [
+    ['grin', 'Grinning', '😀'], ['joy', 'Tears of joy', '😂'], ['hearteyes', 'Heart eyes', '😍'],
+    ['cool', 'Cool', '😎'], ['sleepy', 'Sleeping', '😴'], ['angry', 'Angry', '😡'], ['cold', 'Freezing', '🥶'],
+    ['sick', 'Nauseated', '🤢'], ['scream', 'Scream', '😱'], ['wink', 'Wink', '😉'],
+    ['tongue', 'Tongue out', '😛'], ['clown', 'Clown', '🤡'], ['poop', 'Poop', '💩'], ['ghost', 'Ghost', '👻'],
+    ['alien', 'Alien', '👽'], ['robot', 'Robot', '🤖'], ['skull', 'Skull', '💀'],
+    ['monkeyeyes', 'See-no-evil monkey', '🙈'],
+  ]),
+  ...DG.emojiRefs('symbols', [
+    ['heart', 'Heart', '❤️'], ['brokenheart', 'Broken heart', '💔'], ['cross', 'Cross mark', '❌'],
+    ['circle', 'Red circle', '⭕'], ['question', 'Question mark', '❓'], ['exclaim', 'Exclamation', '❗'],
+    ['hundred', '100', '💯'], ['triangle', 'Triangle', '🔺'], ['peace', 'Peace', '☮️'],
+    ['yinyang', 'Yin yang', '☯️'], ['recycle', 'Recycle', '♻️'], ['zzz', 'Zzz', '💤'], ['boom', 'Boom', '💥'],
+    ['speech', 'Speech bubble', '💬'], ['warning', 'Warning', '⚠️'], ['stop', 'Stop sign', '🛑'],
+    ['music', 'Music notes', '🎶'], ['checkmark', 'Check mark', '✅'], ['sparkles', 'Sparkles', '✨'],
+  ]),
+  // Original CC0 illustrations made for this game (see images/CREDITS.md).
+  ...DG.imageRefs('pictures', [
+    ['pic-house', 'Cosy house', 'images/house.svg'],
+    ['pic-tree', 'Tree', 'images/tree.svg'],
+    ['pic-cat', 'Cat', 'images/cat.svg'],
+    ['pic-rocket', 'Rocket', 'images/rocket.svg'],
+    ['pic-sailboat', 'Sailboat', 'images/sailboat.svg'],
+    ['pic-umbrella', 'Umbrella', 'images/umbrella.svg'],
+    ['pic-cupcake', 'Cupcake', 'images/cupcake.svg'],
+    ['pic-robot', 'Robot', 'images/robot.svg'],
+    ['pic-flowerpot', 'Flower pot', 'images/flowerpot.svg'],
+    ['pic-airballoon', 'Hot-air balloon', 'images/airballoon.svg'],
+    ['pic-whale', 'Whale', 'images/whale.svg'],
+    ['pic-popsicle', 'Ice lolly', 'images/popsicle.svg'],
+  ]),
 ];
 
 DG.REF_PADDING = 0.12; // fraction of canvas left empty around the reference

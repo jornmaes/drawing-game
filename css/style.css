@@ -111,16 +111,32 @@ body:not([data-phase="drawing"]) .timer-pill { display: none; }
 .timer-pill.urgent { background: var(--accent); color: #fff; animation: pulse 0.5s ease-in-out infinite alternate; }
 @keyframes pulse { to { transform: scale(1.12); } }
 
-.timer-toggle {
-  display: flex;
+.options { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.chip {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.9rem;
   font-weight: 700;
-  color: var(--muted);
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px solid var(--frame);
+  border-radius: 999px;
   cursor: pointer;
   user-select: none;
 }
-.timer-toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
+.chip:hover { background: #fff9e8; }
+.chip:focus-within, .chip:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 2px; }
+.chip-count {
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.75rem;
+}
+.timer-toggle input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
 
 /* ---------- replay + result cards ---------- */
 .card {
@@ -284,7 +300,7 @@ body:not([data-phase="drawing"]) .timer-pill { display: none; }
 }
 .swatch-custom:focus-within { outline: 3px solid var(--accent-2); outline-offset: 2px; }
 .swatch[aria-checked="true"] {
-  transform: translateY(-4px) scale(1.1);
+  transform: scale(1.08);
   box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--frame);
 }
 
@@ -344,6 +360,12 @@ body:not([data-phase="drawing"]) .timer-pill { display: none; }
 .panel-draw { max-width: min(100%, 520px); }
 
 @media (max-width: 420px) {
+  body { padding-top: max(env(safe-area-inset-top), 6px); }
+  .top { margin-bottom: 6px; }
+  .logo { font-size: 1.6rem; }
+  .panel-label { margin-bottom: 4px; font-size: 0.9rem; }
+  .stage { gap: 8px; }
+  .side { gap: 10px; }
   .tool-btn, .swatch, .size-btn { width: 31px; height: 31px; border-width: 2px; }
   .tool-btn svg { width: 19px; height: 19px; }
   .palette { gap: 5px; }
@@ -438,3 +460,50 @@ body:not([data-phase="drawing"]) .timer-pill { display: none; }
 .bg-switch button[aria-checked="true"] { background: var(--ink); color: #fff; }
 .sheet-actions { display: flex; flex-direction: column; gap: 10px; }
 .sheet-actions .btn { width: 100%; }
+
+/* ---------- category picker ---------- */
+.cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cat-btn {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  align-items: center;
+  text-align: left;
+  padding: 8px 10px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px solid var(--frame);
+  border-radius: 14px;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: transform 0.1s, opacity 0.1s, background 0.1s;
+}
+.cat-btn[aria-pressed="true"] { opacity: 1; background: #ffe08a; box-shadow: 3px 3px 0 var(--frame); transform: translate(-1px, -1px); }
+.cat-btn:disabled { cursor: not-allowed; opacity: 0.35; }
+.cat-btn:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 2px; }
+.cat-icon { grid-row: span 2; font-size: 1.6rem; line-height: 1; }
+.cat-name { font-weight: 800; font-size: 0.95rem; line-height: 1.1; }
+.cat-n { font-size: 0.75rem; color: var(--muted); }
+.cat-footer { display: flex; justify-content: space-between; align-items: center; margin: 12px 0; }
+.cat-pool { font-weight: 700; color: var(--muted); font-size: 0.9rem; }
+.cat-go { width: 100%; }
+.sheet-note code { background: #f3ecdc; padding: 1px 5px; border-radius: 6px; }
+
+/* ---------- confetti ---------- */
+.confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 20; }
+.confetti span {
+  position: absolute;
+  top: -40px;
+  animation: confetti-fall linear forwards;
+}
+@keyframes confetti-fall {
+  to { transform: translate(var(--drift), 110vh) rotate(var(--spin)); }
+}
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  body[data-phase="replaying"] .canvas-frame::after { display: none; }
+}

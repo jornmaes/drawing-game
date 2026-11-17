@@ -4,7 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#fff4d6">
+  <meta name="description" content="Copy the picture as well as you can, watch the replay, get judged. Then turn your drawing into a sticker.">
   <title>Copy That!</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%E2%9C%8F%EF%B8%8F%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/style.css">
   <script src="js/references.js" defer></script>
   <script src="js/fill.js" defer></script>
@@ -75,10 +77,15 @@
         <button id="btn-skip" class="btn btn-ghost" type="button">Skip ↻</button>
       </div>
 
-      <label class="timer-toggle phase-draw">
-        <input type="checkbox" id="timer-toggle">
-        <span>⏱ 60-second timer</span>
-      </label>
+      <div class="options phase-draw">
+        <label class="chip timer-toggle">
+          <input type="checkbox" id="timer-toggle">
+          <span>⏱️ 60s timer</span>
+        </label>
+        <button id="btn-categories" class="chip" type="button" aria-haspopup="dialog">
+          🗂️ Categories <span class="chip-count" id="cat-count">all</span>
+        </button>
+      </div>
 
       <!-- ===== replay phase ===== -->
       <div class="card phase-replay" aria-live="polite">
@@ -127,6 +134,24 @@
       <button id="btn-dl-sticker" class="btn btn-primary" type="button">⬇ Download sticker</button>
     </div>
     <p class="sheet-note">512×512 PNG with a transparent background.</p>
+  </dialog>
+
+  <dialog id="cat-dialog" class="sheet" aria-labelledby="cat-title">
+    <form method="dialog" class="sheet-close-form">
+      <button class="sheet-close" aria-label="Close">✕</button>
+    </form>
+    <h2 id="cat-title" class="sheet-title">What do you want to draw?</h2>
+    <div class="cat-grid" id="cat-grid"></div>
+    <p class="sheet-note" id="cat-file-note" hidden>
+      🖼️ Pictures need the game to run from a local server, e.g. <code>python -m http.server</code>.
+    </p>
+    <div class="cat-footer">
+      <span class="cat-pool" id="cat-pool"></span>
+      <button id="cat-all" class="btn btn-small" type="button">All on</button>
+    </div>
+    <form method="dialog">
+      <button class="btn btn-primary cat-go">Let's draw!</button>
+    </form>
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

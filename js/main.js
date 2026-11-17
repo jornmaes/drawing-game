@@ -94,7 +94,13 @@ window.DG = window.DG || {};
   toolButtons.forEach((b) => b.addEventListener('click', () => selectTool(b.dataset.tool)));
 
   document.addEventListener('keydown', (e) => {
-    if (state.phase !== 'drawing' || e.target.closest('input, textarea')) return;
+    if (document.querySelector('dialog[open]') || e.target.closest('input, textarea')) return;
+    if (e.key === 'Enter' && !e.target.closest('button')) {
+      if (state.phase === 'drawing' && !$('btn-done').disabled) { e.preventDefault(); finishDrawing(); }
+      else if (state.phase === 'result') { e.preventDefault(); startRound(); }
+      return;
+    }
+    if (state.phase !== 'drawing') return;
     const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
     if (mod && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
     if (mod && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
@@ -248,6 +254,87 @@ window.DG = window.DG || {};
     DG.Draw.setEnabled(phase === 'drawing');
   }
 
+  // ---------- categories ----------
+  // Image references can't be scored when the page is opened as a file (canvas gets "tainted").
+  const ON_FILE = location.protocol === 'file:';
+  const categoryAvailable = (c) => !(c.needsServer && ON_FILE);
+
+  function loadCategories() {
+    const available = DG.CATEGORIES.filter(categoryAvailable).map((c) => c.id);
+    let saved = null;
+    try { saved = JSON.parse(store.get('dg.categories')); } catch (_) { /* ignore */ }
+    let ids = Array.isArray(saved) ? saved.filter((id) => available.includes(id)) : available;
+    if (!ids.length) ids = available;
+    return new Set(ids);
+  }
+  state.categories = loadCategories();
+
+  const refPool = () => DG.REFERENCES.filter((r) => state.categories.has(r.category));
+  const countIn = (catId) => DG.REFERENCES.filter((r) => r.category === catId).length;
+
+  function updateCategorySummary() {
+    const avail = DG.CATEGORIES.filter(categoryAvailable).length;
+    $('cat-count').textContent = state.categories.size === avail ? 'all' : `${state.categories.size}/${avail}`;
+  }
+
+  function buildCategoryDialog() {
+    const grid = $('cat-grid');
+    grid.innerHTML = '';
+    for (const c of DG.CATEGORIES) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'cat-btn';
+      b.dataset.id = c.id;
+      const ok = categoryAvailable(c);
+      b.disabled = !ok;
+      b.setAttribute('aria-pressed', String(state.categories.has(c.id)));
+      b.innerHTML = `<span class="cat-icon"></span><span class="cat-name"></span><span class="cat-n"></span>`;
+      b.querySelector('.cat-icon').textContent = c.icon;
+      b.querySelector('.cat-name').textContent = c.name;
+      b.querySelector('.cat-n').textContent = ok ? countIn(c.id) : 'needs server';
+      if (!ok) b.title = 'Image references need the game to run from a local server (see CLAUDE.md).';
+      b.addEventListener('click', () => toggleCategory(c.id, b));
+      grid.appendChild(b);
+    }
+    $('cat-file-note').hidden = !ON_FILE;
+    updatePoolCount();
+  }
+
+  function updatePoolCount() {
+    const n = refPool().length;
+    $('cat-pool').textContent = `${n} thing${n === 1 ? '' : 's'} to draw`;
+  }
+
+  function toggleCategory(id, btn) {
+    if (state.categories.has(id)) {
+      if (state.categories.size === 1) { toast('Keep at least one category on!'); return; }
+      state.categories.delete(id);
+    } else {
+      state.categories.add(id);
+    }
+    btn.setAttribute('aria-pressed', String(state.categories.has(id)));
+    store.set('dg.categories', JSON.stringify([...state.categories]));
+    state.deck = []; // rebuild from the new pool on the next round
+    updateCategorySummary();
+    updatePoolCount();
+  }
+
+  $('btn-categories').addEventListener('click', () => { buildCategoryDialog(); $('cat-dialog').showModal(); });
+  $('cat-all').addEventListener('click', () => {
+    state.categories = new Set(DG.CATEGORIES.filter(categoryAvailable).map((c) => c.id));
+    store.set('dg.categories', JSON.stringify([...state.categories]));
+    state.deck = [];
+    buildCategoryDialog();
+    updateCategorySummary();
+  });
+  $('cat-dialog').addEventListener('close', () => {
+    // If the current reference's category was switched off and nothing is drawn yet, swap it.
+    if (state.phase === 'drawing' && state.ref && !state.categories.has(state.ref.category) && !state.strokes.length) {
+      startRound();
+    }
+  });
+  updateCategorySummary();
+
   // Shuffled deck, refilled when empty, never repeating the previous ref back-to-back.
   function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
@@ -258,7 +345,7 @@ window.DG = window.DG || {};
   }
   function nextRef() {
     if (state.deck.length === 0) {
-      state.deck = shuffle(DG.REFERENCES.slice());
+      state.deck = shuffle(refPool());
       if (state.ref && state.deck.length > 1 && state.deck[state.deck.length - 1].id === state.ref.id) {
         state.deck.unshift(state.deck.pop());
       }
@@ -360,16 +447,25 @@ window.DG = window.DG || {};
     card.classList.remove('revealed');
     $('badge').textContent = '';
     $('verdict').textContent = '';
+    // personal best (kept in localStorage)
+    const prevBest = Number(store.get('dg.best')) || 0;
+    const newBest = r.score != null && r.score > prevBest;
+    if (newBest) store.set('dg.best', String(r.score));
+
     countUp($('score'), r.score, () => {
       $('badge').textContent = r.verdict.badge;
       $('verdict').textContent = r.verdict.line;
       card.classList.add('revealed');
+      if (newBest && prevBest > 0) toast('🎉 New personal best!');
+      if (r.score >= 75 || (newBest && prevBest > 0)) celebrate();
     });
     if (DEBUG) renderDebug(r);
     prepareExports();
 
     const drawn = state.strokes.filter((s) => s.tool === 'brush' || s.tool === 'fill').length;
-    $('stats').textContent = `Drawn in ${formatTime(state.drawTimeMs)} with ${drawn} stroke${drawn === 1 ? '' : 's'}.`;
+    const best = Math.max(prevBest, r.score || 0);
+    $('stats').textContent = `Drawn in ${formatTime(state.drawTimeMs)} with ${drawn} stroke${drawn === 1 ? '' : 's'}` +
+      (best ? ` · best ${best}%` : '');
     $('btn-again').focus({ preventScroll: true });
     // On phones the result card sits under the canvas: bring it into view.
     document.querySelector('.phase-result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -450,6 +546,28 @@ window.DG = window.DG || {};
   $('btn-dl-sticker').addEventListener('click', () => downloadExport('sticker'));
   $('btn-dl-drawing').addEventListener('click', () => downloadExport('drawing'));
   $('btn-dl-card').addEventListener('click', () => downloadExport('card'));
+
+  // Little emoji confetti burst for great scores (skipped for reduced-motion users).
+  function celebrate() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const box = document.createElement('div');
+    box.className = 'confetti';
+    box.setAttribute('aria-hidden', 'true');
+    const bits = ['🎉', '✨', '⭐', '🎊', '🌟', '💫'];
+    for (let i = 0; i < 32; i++) {
+      const s = document.createElement('span');
+      s.textContent = bits[i % bits.length];
+      s.style.left = Math.random() * 100 + 'vw';
+      s.style.fontSize = 16 + Math.random() * 20 + 'px';
+      s.style.animationDuration = 1.6 + Math.random() * 1.4 + 's';
+      s.style.animationDelay = Math.random() * 0.4 + 's';
+      s.style.setProperty('--spin', (Math.random() * 2 - 1) * 720 + 'deg');
+      s.style.setProperty('--drift', (Math.random() * 2 - 1) * 80 + 'px');
+      box.appendChild(s);
+    }
+    document.body.appendChild(box);
+    setTimeout(() => box.remove(), 3500);
+  }
 
   // Animate 0 -> target with an ease-out, then call done().
   function countUp(el, target, done) {
