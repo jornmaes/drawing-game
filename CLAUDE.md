@@ -15,6 +15,8 @@ first-class target, since sharing stickers mostly happens on phones.
   If it doesn't load, allow Python through Windows Firewall (private networks).
 - HTTPS for a phone (needed later for Share/Copy): `npx localtunnel --port 8000` or
   `cloudflared tunnel --url http://localhost:8000`, then open the https URL.
+- Live: https://jornmaes.github.io/drawing-game/ (GitHub Pages, deploys from `main` / root; `.nojekyll`
+  keeps files served as-is). It's HTTPS, so it's also the easiest way to test on a real phone.
 - Debug: `?debug=1` shows scoring grids/masks/sub-scores on the result card. `?ref=<id>` forces a reference.
 - Keys: B/E/F brush/eraser/fill, Ctrl+Z / Ctrl+Y undo/redo, Enter = Done (drawing) or Play again (result).
 
