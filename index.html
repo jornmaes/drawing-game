@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fff4d6">
+  <title>Copy That!</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/references.js" defer></script>
+  <script src="js/fill.js" defer></script>
+  <script src="js/strokes.js" defer></script>
+  <script src="js/draw.js" defer></script>
+  <script src="js/main.js" defer></script>
+</head>
+<body data-phase="drawing">
+  <header class="top">
+    <h1 class="logo">Copy <span>That!</span></h1>
+  </header>
+
+  <main class="stage">
+    <section class="panel panel-ref" aria-label="Reference">
+      <div class="panel-label">Copy this: <strong id="ref-name">…</strong></div>
+      <div class="canvas-frame">
+        <canvas id="ref-canvas" width="1024" height="1024" aria-label="Reference image"></canvas>
+      </div>
+    </section>
+
+    <section class="panel panel-draw" aria-label="Your drawing">
+      <div class="panel-label">Your masterpiece</div>
+      <div class="canvas-frame">
+        <canvas id="draw-canvas" width="1024" height="1024" data-tool="brush" aria-label="Drawing canvas"></canvas>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="toolbar">
+        <div class="tools">
+          <div class="tool-group" role="radiogroup" aria-label="Tool">
+            <button class="tool-btn" type="button" role="radio" data-tool="brush" aria-checked="true" title="Brush (B)" aria-label="Brush">
+              <svg viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg>
+            </button>
+            <button class="tool-btn" type="button" role="radio" data-tool="eraser" aria-checked="false" title="Eraser (E)" aria-label="Eraser">
+              <svg viewBox="0 0 24 24"><path d="M3 15l9-9 6 6-6 6H7z"/><path d="M8 11l6 6"/><path d="M13 21h8"/></svg>
+            </button>
+            <button class="tool-btn" type="button" role="radio" data-tool="fill" aria-checked="false" title="Fill (F)" aria-label="Fill bucket">
+              <svg viewBox="0 0 24 24"><path d="M4 11l7-7 7 7-7 7z"/><path d="M4 11h14"/><path d="M20 15s2 2.6 2 4a2 2 0 0 1-4 0c0-1.4 2-4 2-4z"/></svg>
+            </button>
+          </div>
+          <div class="tool-group">
+            <button class="tool-btn" id="btn-undo" type="button" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
+              <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>
+            </button>
+            <button class="tool-btn" id="btn-clear" type="button" title="Clear" aria-label="Clear drawing" disabled>
+              <svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="sizes" id="sizes" role="radiogroup" aria-label="Brush size"></div>
+        <div class="palette" id="palette" role="radiogroup" aria-label="Colour"></div>
+      </div>
+
+      <div class="actions">
+        <button id="btn-done" class="btn btn-primary" type="button" disabled title="Coming soon">Done!</button>
+        <button id="btn-skip" class="btn btn-ghost" type="button">Skip ↻</button>
+      </div>
+    </aside>
+  </main>
+</body>
+</html>
