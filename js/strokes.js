@@ -65,5 +65,62 @@ DG.Strokes = (function () {
     for (const s of strokes) drawStroke(ctx, s);
   }
 
-  return { drawPoint, drawStroke, renderAll };
+  // Replay the strokes point by point, squeezed (or stretched) into minMs..maxMs.
+  // Idle gaps longer than maxGap are shortened first, so thinking time doesn't become dead air.
+  // Returns { skip(), cancel() }. onProgress(0..1) runs every frame; onDone() once at the end.
+  function replay(strokes, ctx, opts) {
+    const { minMs = 10000, maxMs = 20000, maxGap = 250, onProgress = () => {}, onDone = () => {} } = opts || {};
+
+    // Everything before the last Clear is invisible in the end, so start after it.
+    let from = 0;
+    strokes.forEach((s, i) => { if (s.tool === 'clear') from = i + 1; });
+
+    // Flatten to a timeline of (virtual time, stroke, point index).
+    const events = [];
+    let vt = 0, prevT = null;
+    for (const s of strokes.slice(from)) {
+      s.points.forEach((p, pi) => {
+        if (prevT !== null) vt += Math.min(Math.max(p.t - prevT, 0), maxGap);
+        prevT = p.t;
+        events.push({ vt, stroke: s, pi });
+      });
+    }
+    const drawnLength = Math.max(vt, 1);
+    const totalMs = Math.min(maxMs, Math.max(minMs, drawnLength));
+
+    ctx.clearRect(0, 0, DG.SIZE, DG.SIZE);
+    let next = 0, raf = 0, finished = false;
+    const t0 = performance.now();
+
+    function frame(now) {
+      if (finished) return;
+      const elapsed = now - t0;
+      const virtualNow = (elapsed / totalMs) * drawnLength;
+      while (next < events.length && events[next].vt <= virtualNow) {
+        const e = events[next++];
+        drawPoint(ctx, e.stroke, e.pi);
+      }
+      onProgress(Math.min(1, elapsed / totalMs));
+      if (elapsed >= totalMs) finish();
+      else raf = requestAnimationFrame(frame);
+    }
+
+    function finish() {
+      if (finished) return;
+      finished = true;
+      cancelAnimationFrame(raf);
+      renderAll(strokes, ctx); // guarantee the exact final picture
+      onProgress(1);
+      onDone();
+    }
+
+    raf = requestAnimationFrame(frame);
+    return {
+      totalMs,
+      skip: finish,
+      cancel() { finished = true; cancelAnimationFrame(raf); },
+    };
+  }
+
+  return { drawPoint, drawStroke, renderAll, replay };
 })();

@@ -26,14 +26,18 @@
     </section>
 
     <section class="panel panel-draw" aria-label="Your drawing">
-      <div class="panel-label">Your masterpiece</div>
+      <div class="panel-label">
+        Your masterpiece
+        <span id="timer-pill" class="timer-pill" hidden>1:00</span>
+      </div>
       <div class="canvas-frame">
         <canvas id="draw-canvas" width="1024" height="1024" data-tool="brush" aria-label="Drawing canvas"></canvas>
       </div>
     </section>
 
     <aside class="side">
-      <div class="toolbar">
+      <!-- ===== drawing phase ===== -->
+      <div class="toolbar phase-draw">
         <div class="tools">
           <div class="tool-group" role="radiogroup" aria-label="Tool">
             <button class="tool-btn" type="button" role="radio" data-tool="brush" aria-checked="true" title="Brush (B)" aria-label="Brush">
@@ -62,11 +66,37 @@
         <div class="palette" id="palette" role="radiogroup" aria-label="Colour"></div>
       </div>
 
-      <div class="actions">
-        <button id="btn-done" class="btn btn-primary" type="button" disabled title="Coming soon">Done!</button>
+      <div class="actions phase-draw">
+        <button id="btn-done" class="btn btn-primary" type="button" disabled title="Draw something first">Done!</button>
         <button id="btn-skip" class="btn btn-ghost" type="button">Skip ↻</button>
+      </div>
+
+      <label class="timer-toggle phase-draw">
+        <input type="checkbox" id="timer-toggle">
+        <span>⏱ 60-second timer</span>
+      </label>
+
+      <!-- ===== replay phase ===== -->
+      <div class="card phase-replay" aria-live="polite">
+        <h2 class="card-title">Calculating similarity<span class="dots"><span>.</span><span>.</span><span>.</span></span></h2>
+        <div class="progress" role="progressbar" aria-label="Calculating" aria-valuemin="0" aria-valuemax="100">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <p class="calc-status" id="calc-status">Warming up the judges…</p>
+        <button id="btn-skip-replay" class="link-btn" type="button">skip ▸</button>
+      </div>
+
+      <!-- ===== result phase ===== -->
+      <div class="card phase-result" aria-live="polite">
+        <div class="score-label">Similarity</div>
+        <div class="score" id="score">??%</div>
+        <p class="verdict" id="verdict">…</p>
+        <p class="stats" id="stats"></p>
+        <button id="btn-again" class="btn btn-primary" type="button">Play again</button>
       </div>
     </aside>
   </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>
 </html>

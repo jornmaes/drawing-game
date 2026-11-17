@@ -113,7 +113,16 @@ DG.Draw = (function () {
       roundStart = performance.now();
     },
 
-    setEnabled(on) { enabled = on; },
+    setEnabled(on) {
+      enabled = on;
+      if (!on && current) {
+        // e.g. the timer ran out mid-stroke: keep what was drawn so far
+        const stroke = current;
+        current = null;
+        activePointer = null;
+        if (stroke.points.length) onStrokeEnd(stroke);
+      }
+    },
 
     // ms since the round started (used to timestamp "clear" entries)
     now() { return Math.round(performance.now() - roundStart); },

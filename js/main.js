@@ -1,5 +1,5 @@
 // Game flow + UI wiring.
-// Drawing tools, undo/redo/clear, reference deck.
+// Game flow + UI wiring: drawing -> replaying -> result -> next round.
 window.DG = window.DG || {};
 
 (function () {
@@ -12,6 +12,9 @@ window.DG = window.DG || {};
     deck: [],
     strokes: [],
     redo: [],     // strokes taken off by Undo, restorable with Redo
+    timer: { enabled: false, endsAt: 0, handle: 0 },
+    replay: null, // controller for the running replay
+    drawTimeMs: 0,
   };
   DG.state = state; // handy for poking around in the console
 
@@ -47,6 +50,7 @@ window.DG = window.DG || {};
     $('btn-undo').disabled = state.strokes.length === 0;
     $('btn-redo').disabled = state.redo.length === 0;
     $('btn-clear').disabled = !hasVisibleStrokes();
+    $('btn-done').disabled = !hasVisibleStrokes();
   }
 
   function undo() {
@@ -170,10 +174,75 @@ window.DG = window.DG || {};
   }, (s) => { DG.Draw.settings.size = s.value; });
   refreshSizeDots();
 
+  // ---------- small UI helpers ----------
+  let toastTimer = 0;
+  function toast(msg, ms = 2600) {
+    const el = $('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+  }
+
+  function formatTime(ms) {
+    const total = Math.ceil(ms / 1000);
+    return Math.floor(total / 60) + ':' + String(total % 60).padStart(2, '0');
+  }
+
+  // localStorage can throw (private mode, blocked storage), so wrap it.
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (_) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (_) { /* ignore */ } },
+  };
+
+  // ---------- timer (optional) ----------
+  const TIMER_MS = 60 * 1000;
+
+  function stopTimer() {
+    clearInterval(state.timer.handle);
+    state.timer.handle = 0;
+  }
+
+  function startTimer() {
+    stopTimer();
+    const pill = $('timer-pill');
+    if (!state.timer.enabled) { pill.hidden = true; return; }
+    state.timer.endsAt = performance.now() + TIMER_MS;
+    pill.hidden = false;
+    tickTimer();
+    state.timer.handle = setInterval(tickTimer, 200);
+  }
+
+  function tickTimer() {
+    const left = Math.max(0, state.timer.endsAt - performance.now());
+    const pill = $('timer-pill');
+    pill.textContent = formatTime(left);
+    pill.classList.toggle('urgent', left <= 10000);
+    if (left <= 0) {
+      stopTimer();
+      if (hasVisibleStrokes()) {
+        toast("⏱ Time's up! Pencils down!");
+        finishDrawing();
+      } else {
+        toast("⏱ Time's up… and the canvas is empty. Here's a new one!");
+        startRound();
+      }
+    }
+  }
+
+  state.timer.enabled = store.get('dg.timer') === '1';
+  $('timer-toggle').checked = state.timer.enabled;
+  $('timer-toggle').addEventListener('change', (e) => {
+    state.timer.enabled = e.target.checked;
+    store.set('dg.timer', state.timer.enabled ? '1' : '0');
+    if (state.phase === 'drawing') startTimer(); // turning it on mid-round starts a fresh 60s
+  });
+
   // ---------- game flow ----------
   function setPhase(phase) {
     state.phase = phase;
     document.body.dataset.phase = phase;
+    DG.Draw.setEnabled(phase === 'drawing');
   }
 
   // Shuffled deck, refilled when empty, never repeating the previous ref back-to-back.
@@ -195,12 +264,16 @@ window.DG = window.DG || {};
   }
 
   async function startRound(ref) {
+    stopTimer();
+    if (state.replay) { state.replay.cancel(); state.replay = null; }
     state.ref = ref || nextRef();
     state.strokes = [];
     state.redo = [];
     DG.Draw.reset();
     DG.Strokes.renderAll(state.strokes, drawCtx);
     updateEditButtons();
+    setPhase('drawing');
+    $('timer-pill').hidden = true;
     $('ref-name').textContent = state.ref.name;
     try {
       await DG.renderReference(state.ref, refCtx);
@@ -210,10 +283,76 @@ window.DG = window.DG || {};
       setTimeout(() => startRound(), 800);
       return;
     }
-    setPhase('drawing');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    DG.Draw.reset(); // the clock starts once the reference is actually visible
+    startTimer();
   }
 
+  // Fake "analysis" lines shown during the replay. Purely for fun.
+  const CALC_LINES = [
+    'Measuring wobbliness…',
+    'Counting pixels by hand…',
+    'Squinting really hard…',
+    'Consulting a very serious art critic…',
+    'Comparing vibes…',
+    'Asking a pigeon for its opinion…',
+    'Calibrating the potato detector…',
+    'Checking for stick figures…',
+    'Ignoring that one weird line…',
+    'Applying generous rounding…',
+    'Holding it at arm\'s length…',
+    'Turning it upside down, just in case…',
+  ];
+  let calcLineTimer = 0;
+
+  function finishDrawing() {
+    if (state.phase !== 'drawing' || !hasVisibleStrokes()) return;
+    stopTimer();
+    state.drawTimeMs = DG.Draw.now();
+    setPhase('replaying');
+
+    // Rotating status lines in random order.
+    const lines = shuffle(CALC_LINES.slice());
+    let li = 0;
+    $('calc-status').textContent = lines[li];
+    clearInterval(calcLineTimer);
+    calcLineTimer = setInterval(() => { $('calc-status').textContent = lines[++li % lines.length]; }, 1700);
+
+    const fill = $('progress-fill');
+    fill.style.width = '0%';
+    state.replay = DG.Strokes.replay(state.strokes, drawCtx, {
+      minMs: 10000,
+      maxMs: 20000,
+      maxGap: 250,
+      onProgress(p) {
+        // Ease out so it races ahead early and crawls at the end, like every real progress bar.
+        const shown = p >= 1 ? 100 : Math.min(99, Math.round((1 - Math.pow(1 - p, 2.2)) * 100));
+        fill.style.width = shown + '%';
+        fill.parentElement.setAttribute('aria-valuenow', String(shown));
+      },
+      onDone: showResult,
+    });
+  }
+
+  function showResult() {
+    clearInterval(calcLineTimer);
+    state.replay = null;
+    setPhase('result');
+
+    // Placeholder until scoring lands (step 5).
+    $('score').textContent = '??%';
+    $('verdict').textContent = 'The judges are still in art school. (Scoring arrives in step 5.)';
+    const drawn = state.strokes.filter((s) => s.tool === 'brush' || s.tool === 'fill').length;
+    $('stats').textContent = `Drawn in ${formatTime(state.drawTimeMs)} with ${drawn} stroke${drawn === 1 ? '' : 's'}.`;
+    $('btn-again').focus({ preventScroll: true });
+    // On phones the result card sits under the canvas: bring it into view.
+    document.querySelector('.phase-result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  $('btn-done').addEventListener('click', finishDrawing);
   $('btn-skip').addEventListener('click', () => startRound());
+  $('btn-skip-replay').addEventListener('click', () => state.replay && state.replay.skip());
+  $('btn-again').addEventListener('click', () => startRound());
 
   // ?ref=<id> forces a specific reference (debug).
   const forced = DG.REFERENCES.find((r) => r.id === params.get('ref'));
