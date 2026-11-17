@@ -10,6 +10,8 @@
   <script src="js/fill.js" defer></script>
   <script src="js/strokes.js" defer></script>
   <script src="js/draw.js" defer></script>
+  <script src="js/scoring.js" defer></script>
+  <script src="js/verdicts.js" defer></script>
   <script src="js/main.js" defer></script>
 </head>
 <body data-phase="drawing">
@@ -89,10 +91,14 @@
       <!-- ===== result phase ===== -->
       <div class="card phase-result" aria-live="polite">
         <div class="score-label">Similarity</div>
-        <div class="score" id="score">??%</div>
-        <p class="verdict" id="verdict">…</p>
+        <div class="score-row">
+          <div class="score" id="score">0%</div>
+          <div class="badge" id="badge" aria-hidden="true"></div>
+        </div>
+        <p class="verdict" id="verdict"></p>
         <p class="stats" id="stats"></p>
         <button id="btn-again" class="btn btn-primary" type="button">Play again</button>
+        <div id="debug" class="debug" hidden></div>
       </div>
     </aside>
   </main>

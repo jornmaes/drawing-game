@@ -64,10 +64,35 @@ async function rasterizeSource(ref, px) {
     const img = await loadImage(ref.src);
     const s = Math.min(px / img.width, px / img.height);
     ctx.drawImage(img, (px - img.width * s) / 2, (px - img.height * s) / 2, img.width * s, img.height * s);
+    if (ref.keepBackground !== true) knockOutWhiteBackground(ctx, px);
   } else {
     throw new Error('Unknown reference type: ' + ref.type);
   }
   return c;
+}
+
+// Images with a white (non-transparent) background: make near-white pixels that touch the border
+// transparent, so only the subject counts as "ink" for scoring. White *inside* the subject is kept.
+function knockOutWhiteBackground(ctx, n) {
+  const img = ctx.getImageData(0, 0, n, n);
+  const d = img.data;
+  const isBg = (p) => {
+    const i = p * 4;
+    return d[i + 3] < 16 || (d[i] > 235 && d[i + 1] > 235 && d[i + 2] > 235);
+  };
+  const seen = new Uint8Array(n * n);
+  const stack = [];
+  const seed = (p) => { if (!seen[p] && isBg(p)) { seen[p] = 1; stack.push(p); } };
+  for (let i = 0; i < n; i++) { seed(i); seed((n - 1) * n + i); seed(i * n); seed(i * n + n - 1); }
+  while (stack.length) {
+    const p = stack.pop(), x = p % n;
+    d[p * 4 + 3] = 0;
+    if (x > 0) seed(p - 1);
+    if (x < n - 1) seed(p + 1);
+    if (p >= n) seed(p - n);
+    if (p < n * (n - 1)) seed(p + n);
+  }
+  ctx.putImageData(img, 0, 0);
 }
 
 // Bounding box of non-transparent, non-white pixels (emoji glyphs are never perfectly centered).

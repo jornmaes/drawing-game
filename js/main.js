@@ -15,7 +15,9 @@ window.DG = window.DG || {};
     timer: { enabled: false, endsAt: 0, handle: 0 },
     replay: null, // controller for the running replay
     drawTimeMs: 0,
+    result: null, // { score, raw, shape, color, empty, verdict: {badge, line}, ... }
   };
+  const DEBUG = params.has('debug');
   DG.state = state; // handy for poking around in the console
 
   // Canvases use logical 512x512 units; the backing store is 2x for sharpness.
@@ -309,7 +311,19 @@ window.DG = window.DG || {};
     if (state.phase !== 'drawing' || !hasVisibleStrokes()) return;
     stopTimer();
     state.drawTimeMs = DG.Draw.now();
-    setPhase('replaying');
+    setPhase('replaying'); // (also commits a stroke that was still in progress)
+
+    // Score now, while the canvas still shows the finished drawing; reveal it after the replay.
+    try {
+      state.result = DG.score($('ref-canvas'), $('draw-canvas'));
+    } catch (err) {
+      // e.g. an image reference loaded from file:// taints the canvas -> getImageData throws
+      console.error('Scoring failed:', err);
+      state.result = { score: null, empty: false, error: true };
+    }
+    state.result.verdict = state.result.error
+      ? { badge: '🤷', line: 'The judges lost their glasses. (Scoring failed: try running from a local server.)' }
+      : DG.pickVerdict(state.result.score, state.result.empty);
 
     // Rotating status lines in random order.
     const lines = shuffle(CALC_LINES.slice());
@@ -339,14 +353,80 @@ window.DG = window.DG || {};
     state.replay = null;
     setPhase('result');
 
-    // Placeholder until scoring lands (step 5).
-    $('score').textContent = '??%';
-    $('verdict').textContent = 'The judges are still in art school. (Scoring arrives in step 5.)';
+    const r = state.result;
+    const card = document.querySelector('.phase-result');
+    card.classList.remove('revealed');
+    $('badge').textContent = '';
+    $('verdict').textContent = '';
+    countUp($('score'), r.score, () => {
+      $('badge').textContent = r.verdict.badge;
+      $('verdict').textContent = r.verdict.line;
+      card.classList.add('revealed');
+    });
+    if (DEBUG) renderDebug(r);
+
     const drawn = state.strokes.filter((s) => s.tool === 'brush' || s.tool === 'fill').length;
     $('stats').textContent = `Drawn in ${formatTime(state.drawTimeMs)} with ${drawn} stroke${drawn === 1 ? '' : 's'}.`;
     $('btn-again').focus({ preventScroll: true });
     // On phones the result card sits under the canvas: bring it into view.
     document.querySelector('.phase-result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // Animate 0 -> target with an ease-out, then call done().
+  function countUp(el, target, done) {
+    if (target == null) { el.textContent = '??%'; done(); return; }
+    const ms = 600 + target * 12; // higher scores take a little longer: more suspense
+    const t0 = performance.now();
+    function frame(now) {
+      const p = Math.min(1, (now - t0) / ms);
+      el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3))) + '%';
+      if (p < 1) requestAnimationFrame(frame);
+      else done();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ?debug=1: show the 64x64 grids/masks and the sub-scores, for tuning DG.SCORING.
+  function renderDebug(r) {
+    const box = $('debug');
+    box.hidden = false;
+    box.innerHTML = '';
+    if (!r.debug) { box.textContent = r.empty ? 'empty drawing' : 'no debug data'; return; }
+    const { refGrid, drawGrid, inkA, inkB, N } = r.debug;
+    const tile = (label, paint) => {
+      const fig = document.createElement('figure');
+      const c = document.createElement('canvas');
+      c.width = c.height = N;
+      paint(c.getContext('2d'));
+      fig.appendChild(c);
+      const cap = document.createElement('figcaption');
+      cap.textContent = label;
+      fig.appendChild(cap);
+      box.appendChild(fig);
+    };
+    tile('ref', (x) => x.drawImage(refGrid, 0, 0));
+    tile('you', (x) => x.drawImage(drawGrid, 0, 0));
+    tile('masks', (x) => {
+      // teal = both, red = only theirs (missed), blue = only yours (extra)
+      const img = x.createImageData(N, N);
+      for (let p = 0; p < N * N; p++) {
+        const a = inkA[p], b = inkB[p], i = p * 4;
+        const c = a && b ? [59, 183, 165] : a ? [229, 57, 53] : b ? [30, 79, 216] : [255, 255, 255];
+        img.data.set([...c, 255], i);
+      }
+      x.putImageData(img, 0, 0);
+    });
+    const f = (v) => (v == null ? '–' : v.toFixed(2));
+    const pre = document.createElement('pre');
+    pre.textContent =
+      `score ${r.score}  raw ${f(r.raw)}
+` +
+      `shape ${f(r.shape)} (filled ${f(r.kFilled)}, raw ${f(r.kRaw)})
+` +
+      `colour ${f(r.color)}  size× ${f(r.sizeFactor)}
+` +
+      `precision ${f(r.precision)}  recall ${f(r.recall)}`;
+    box.appendChild(pre);
   }
 
   $('btn-done').addEventListener('click', finishDrawing);

@@ -67,13 +67,19 @@ Pick simple, bold, mostly-filled shapes. Images must be copyright-free (note the
 centered with padding. Emoji look different per OS; that's fine, because scoring uses what was rendered.
 
 ## Tweak scoring
-Pipeline: flatten both onto white → (optional) crop each to its ink bounding box → downscale to 64×64 →
-ink masks + dilation → shape = F1(precision, recall) → color = average closeness on ref ink →
-`raw = W_SHAPE*shape + W_COLOR*color` → fun curve `100 * ((raw-FLOOR)/(CEIL-FLOOR))^GAMMA`.
-All knobs are in `DG.SCORING`: `SIZE, ALIGN_TO_BBOX, INK_THRESHOLD, DILATE, W_SHAPE, W_COLOR, FLOOR,
-CEIL, GAMMA`. Too harsh → raise `DILATE`, lower `CEIL`, or lower `GAMMA`. Blobs scoring too well → raise
-`W_SHAPE` or lower `DILATE`. Target: empty = 0, scribble < 25, decent attempt 50–80, great 85+.
-Verdict bands/texts live in `js/verdicts.js`. Edit them freely.
+Pipeline (js/scoring.js): ink = painted alpha on the transparent layers → crop each to its ink bounding
+box and fit into a 64×64 grid → **shape** = Cohen's kappa of the ink masks (chance-corrected, so filling
+the whole canvas scores ~0), averaged over hole-filled masks (tolerant by `DILATE`) and raw masks (strict)
+→ **colour** = closeness over the reference's ink, as seen on white → drawings much smaller than the
+reference are penalised → `raw = shape^SHAPE_EXP × (COLOR_BASE + (1-COLOR_BASE) × colour)` →
+fun curve `100 × ((raw-FLOOR)/(CEIL-FLOOR))^GAMMA`.
+All knobs are in `DG.SCORING`. Too harsh → lower `CEIL`/`GAMMA`/`SHAPE_EXP` or raise `DILATE`.
+Wrong colours too forgiving → lower `COLOR_BASE`. Scribbles too high → raise `FLOOR`.
+`?debug=1` shows the 64×64 grids, a mask diff (teal both, red missed, blue extra) and sub-scores.
+Calibrated on synthetic drawings: exact copy 100, wobbly palette copy ~85–100, plain-colour silhouette
+~90, right shape wrong colours ~40, outline only ~30–45, random scribble ~15–40, dot/full fill 0.
+A decent real attempt should land at 50–80. Verdicts (bands + badges) live in `js/verdicts.js`.
+Image refs with a white background get it knocked out to transparent on load (`keepBackground: true` opts out).
 
 ## Export & sharing
 - Sticker: crop to alpha bbox + padding → white silhouette (`source-in`) → dilate by stamping it around a
